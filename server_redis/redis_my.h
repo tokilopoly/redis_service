@@ -79,7 +79,6 @@ public:
         reply = (redisReply*)redisCommand(this->_connect, "HSET phone %s %s", phone.c_str(), data.dump().c_str());
         freeReplyObject(reply);
     }
-
     void    add_phone(std::string phone,std::string real_phone) {
         JSON    data ;
         data["Served"] = JSON::array();
@@ -103,6 +102,19 @@ public:
         redisCommand(this->_connect, "sadd %s %s",  user_db_name.c_str(),user.c_str());
     }
 
+    void    clear_all() {
+        redisReply* reply = (redisReply*)redisCommand(this->_connect, "DEL users");
+        if (reply == NULL || reply->type != REDIS_REPLY_INTEGER) {
+            std::cerr << "DEL error: " << this->_connect->errstr << std::endl;
+        }
+        freeReplyObject(reply);
+        
+        reply = (redisReply*)redisCommand(this->_connect, "DEL phone");
+        if (reply == NULL || reply->type != REDIS_REPLY_INTEGER) {
+            std::cerr << "DEL error: " << this->_connect->errstr << std::endl;
+        }
+        freeReplyObject(reply);
+    }
 private:
     std::string user_db_name = "users";
     redisContext* _connect;

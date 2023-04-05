@@ -21,16 +21,22 @@ int main(int argc, char** argv) {
 #pragma region REDIS
 	Redis* my_redis = new Redis();
 	IsUser	check_user;
-
 	if (!my_redis->connect("127.0.0.1", 6379))
 	{
 		printf("connect error!\n");
 		return 0;
 	}
+	//my_redis->clear_all();
 
-	/*my_redis->getAll_noServed("user");
-
-	auto c=my_redis->has_Served("1101002", "user3");*/
+	for (int i = 0; i < 20; i++) {
+		std::string s = std::to_string(100 + i);
+		my_redis->add_phone(s, s + s+s+s); //添加几个号码
+	}
+	for (int i = 0; i < 4; i++) {
+		std::string s = "user" + std::to_string(i);
+		my_redis->add_user(s); //添加几个用户
+	}
+	
 #pragma endregion
 	// curl -v http://ip:port/user/123
 	router.GET("/can_recv", [&](const HttpContextPtr& ctx) {
@@ -74,7 +80,7 @@ int main(int argc, char** argv) {
 		}
 		auto user_info = check_user.get_USER_INFO(hash);
 		resp["invalid"] = true;
-		for (int i = 0; i < 4; i++) {
+		for (int i = 0; i < 10; i++) {
 			Sleep(1000);
 		}
 		std::wstring duanxin_content = L"中文something...";
