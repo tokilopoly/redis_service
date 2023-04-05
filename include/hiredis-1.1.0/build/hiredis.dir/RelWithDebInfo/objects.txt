@@ -1,0 +1,7 @@
+E:/download/hiredis-1.1.0/hiredis-1.1.0/build/hiredis.dir/RelWithDebInfo/alloc.obj
+E:/download/hiredis-1.1.0/hiredis-1.1.0/build/hiredis.dir/RelWithDebInfo/async.obj
+E:/download/hiredis-1.1.0/hiredis-1.1.0/build/hiredis.dir/RelWithDebInfo/hiredis.obj
+E:/download/hiredis-1.1.0/hiredis-1.1.0/build/hiredis.dir/RelWithDebInfo/net.obj
+E:/download/hiredis-1.1.0/hiredis-1.1.0/build/hiredis.dir/RelWithDebInfo/read.obj
+E:/download/hiredis-1.1.0/hiredis-1.1.0/build/hiredis.dir/RelWithDebInfo/sds.obj
+E:/download/hiredis-1.1.0/hiredis-1.1.0/build/hiredis.dir/RelWithDebInfo/sockcompat.obj
