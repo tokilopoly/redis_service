@@ -1,70 +1,57 @@
-﻿#include "hv/HttpServer.h"
-#include    "redis_my.h"    
-#include	"json.hpp"
-#include	<thread>
+﻿#include <iostream>
+#include <string>
+#include <sw/redis++/redis++.h>
+#include <sw/redis++/connection.h>
+#include "redis_my.h"
+#include <locale>
 #include <codecvt>
-#include <mutex>
+#include <hv/HttpServer.h>
+#include "json.hpp"
+
+using namespace sw::redis;
 using namespace hv;
 using JSON = nlohmann::json;
 
 
 int main(int argc, char** argv) {
 	HV_MEMCHECK;
-#pragma region MyRegion
-	int port = 0;
+	int port = 8080;
 	if (argc > 1) {
 		port = atoi(argv[1]);
 	}
-	if (port == 0) port = 8080;
 	HttpService router;
-#pragma endregion
-#pragma region REDIS
-	Redis* my_redis = new Redis();
-	IsUser	check_user;
-	if (!my_redis->connect("127.0.0.1", 6379))
-	{
-		printf("connect error!\n");
-		return 0;
-	}
-	//my_redis->clear_all();
+	RedisManager	Redis_me("127.0.0.1");
+	Redis_me.Connect();
 
-	//for (int i = 0; i < 20; i++) {
-	//	std::string s = std::to_string(100 + i);
-	//	my_redis->add_phone(s, s + s+s+s); //添加几个号码
-	//}
-	//for (int i = 0; i < 4; i++) {
-	//	std::string s = "user" + std::to_string(i);
-	//	my_redis->add_user(s); //添加几个用户
-	//}
-	//
-#pragma endregion
-	// curl -v http://ip:port/user/123
+	Redis_me._clear_all();
+	Redis_me._add_user_and_phone();
+	Redis_me.init_check_user();	//从数据库把所有users用户信息保存到程序里
+
+#pragma region REDIS
 	router.GET("/can_recv", [&](const HttpContextPtr& ctx) {
 		JSON resp;
 		std::string hash = ctx->request->GetParam("hash");
-		if(!hash.empty()){
+		if (!hash.empty()) {
 			resp["hash"] = hash;
 			resp["no_served"] = JSON::array();
-			if (!check_user.Is_User(resp["hash"])) {
+			if (Redis_me.check_user_exist_inhash(resp["hash"]) != RedisManager::STATUS_TRUE) {
 				resp["invalid"] = false;
 				return ctx->send(resp.dump());
 			}
-			auto user_info = check_user.get_USER_INFO(resp["hash"]);
+
+			std::string user_token = Redis_me.hash_get_token(hash);
 			resp["invalid"] = true;
-			auto all = my_redis->getAll_noServed(user_info.token);
+			auto all = Redis_me.get_noServed_item(user_token,10);
 			for (auto a : all) {
 				resp["no_served"].push_back(a.real_phone);
 			}
 		}
-		else {
-			resp["hash"] = "0";
-		}
 		return ctx->send(resp.dump());
 		});
 
-	router.GET("/recv", [&](const HttpContextPtr& ctx) {
+	router.GET("/recv_mess", [&](const HttpContextPtr& ctx) {
 		std::string hash = ctx->request->GetParam("hash");
-		std::string phone= ctx->request->GetParam("phone");
+		std::string phone = ctx->request->GetParam("phone");
 		JSON resp;
 		if (hash.empty() || phone.empty()) {
 			resp["hash"] = "null";
@@ -73,14 +60,13 @@ int main(int argc, char** argv) {
 		}
 		resp["hash"] = hash;
 		resp["phone"] = phone;
-		resp["no_served"] = JSON::array();
-		if (!check_user.Is_User(hash)) {
+		if (Redis_me.check_user_exist_inhash(hash) != RedisManager::STATUS_TRUE || Redis_me.exist_real_phone(phone) != RedisManager::STATUS_TRUE) {
 			resp["invalid"] = false;
 			return ctx->send(resp.dump());
 		}
-		auto user_info = check_user.get_USER_INFO(hash);
+		auto user_info = Redis_me.get_user_info(hash);
 		resp["invalid"] = true;
-		for (int i = 0; i < 10; i++) {
+		for (int i = 0; i < 20; i++) {
 			Sleep(1000);
 		}
 		std::wstring duanxin_content = L"中文something...";
@@ -97,9 +83,9 @@ int main(int argc, char** argv) {
 			resp["token"] = "null";
 			return ctx->send(resp.dump(4));
 		}
-		if (my_redis->exist_user(token))
+		if (Redis_me.exist_user(token) == RedisManager::STATUS_TRUE)
 		{
-			std::string hash = check_user.Alloc_hash(token);
+			std::string hash = Redis_me.Alloc_Hash_in_token(token);
 			resp["hash"] = hash;
 		}
 		else {
@@ -109,16 +95,15 @@ int main(int argc, char** argv) {
 		});
 
 
-
 	HttpServer server;
 	server.service = &router;
 	server.port = port;
 
 
 	// uncomment to test multi-processes
-	// server.setProcessNum(4);
+	//server.setProcessNum(4);
 	// uncomment to test multi-threads
-	server.setThreadNum(8);
+	server.setThreadNum(2);
 
 	server.start();
 

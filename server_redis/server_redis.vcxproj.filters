@@ -20,13 +20,13 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="redis_my.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="json.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="str.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="redis_my.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

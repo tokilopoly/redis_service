@@ -1,133 +1,278 @@
-#ifndef _REDIS_H_
-#define _REDIS_H_
-
-#include <iostream>
-#include <string.h>
 #include <string>
-#include <stdio.h>
-#include	"json.hpp"
+#include <vector>
+#include <utility>
+#include <sw/redis++/redis++.h>
+#include <iostream>
 #include    "str.h"
-
+#include	"json.hpp"
 using JSON = nlohmann::json;
-#include    <hiredis-1.1.0/hiredis.h>
+using namespace sw::redis;
 
-
-class Redis
-{
+#define	SERVED_KEY	"Served"
+#define	REAL_PHONE_KEY	"Real_Phone"
+class RedisManager {
 public:
+	enum STATUS_RedisManager
+	{
+		STATUS_ERROR = 0,
+		STATUS_TRUE = 1,
+		STATUS_FALSE = 2
+	};
+	RedisManager(const std::string& host, int port = 6379):_lock() {
+		connection_options_.host = host;
+		connection_options_.port = port;
+		connection_options_.db = 0;
+		pool_options_.size = 3;  // Pool size, i.e. max number of connections.
+		pool_options_.wait_timeout = std::chrono::milliseconds(100);
+	}
 
-    Redis() {}
+	bool Connect() {
+		try {
+			redis_me = std::make_unique<Redis>(connection_options_);
+		}
+		catch (const ReplyError& err) {
+			printf("RedisHandler-- ReplyError：%s \n", err.what());
+			return false;
+		}
+		catch (const TimeoutError& err) {
+			printf("RedisHandler-- TimeoutError%s \n", err.what());
+			return false;
+		}
+		catch (const ClosedError& err) {
+			printf("RedisHandler-- ClosedError%s \n", err.what());
+			return false;
+		}
+		catch (const IoError& err) {
+			printf("RedisHandler-- IoError%s \n", err.what());
+			return false;
+		}
 
-    ~Redis()
-    {
-        this->_connect = NULL;
-        this->_reply = NULL;
-    }
+		catch (const Error& err) {
+			std::cerr << "Failed to connect to Redis server: " << err.what() << '\n';
+			return false;
+		}
+		return true;
+	}
 
-    bool connect(std::string host, int port)
-    {
-        this->_connect = redisConnect(host.c_str(), port);
-        if (this->_connect != NULL && this->_connect->err)
-        {
-            printf("connect error: %s\n", this->_connect->errstr);
-            return 0;
-        }
-        return 1;
-    }
+	void Disconnect() {
+		redis_me.reset(nullptr);
+	}
 
-    std::vector<redis_phone>    getAll_noServed(std::string token,int cursor = 0) {
-        std::vector<redis_phone> ret;
-        redisReply* reply = (redisReply*)redisCommand(this->_connect, "HGETALL phone");
-        if (reply == NULL) {
-            std::cout << "Failed to execute Redis command" << std::endl;
-            return ret;
-        }
-        if (reply->type == REDIS_REPLY_ARRAY) {
-            for (int i = 0; i < reply->elements; i += 2) {
-                JSON    data = JSON::parse(reply->element[i + 1]->str);
-                if (data["Served"].size() == 0) {
-                    redis_phone re;
-                    re.real_phone = data["real_phone"];
-                    re.phone = reply->element[i]->str;
-                    ret.push_back(re);
-                    add_phone_Served(re.phone, token);
-                    continue;
-                }
-                for (int j = 0; j < data["Served"].size(); j++) {
-                    if (data["Served"][j] == token)
-                        continue;
-                    else {
-                        redis_phone re;
-                        re.real_phone = data["real_phone"];
-                        re.phone = reply->element[i]->str;
-                        ret.push_back(re);
-                        add_phone_Served(re.phone, token);
-                    }
-                }
-            }
-        }
-        freeReplyObject(reply);
-        return ret;
-    }
+	void	init_check_user() {
+		try
+		{
+			std::map<std::string, std::string> user_;
+			redis_me->hgetall(user_db_name, std::inserter(user_, user_.begin()));
+			for (auto in : user_) {
+				JSON	js = JSON::parse(in.second);
+				Check_User::USER_INFO_hash_time	init_strc;
+				init_strc.hash = js["hash"];
+				init_strc.user_info.t = js["time_t"];
+				init_strc.user_info.token = in.first;
+				check_user_.init_program_now_user(init_strc);
+			}
+		}
+		catch (const std::exception&)
+		{
 
-    bool    has_Served(std::string phone, std::string token) {
-        redisReply* reply = (redisReply*)redisCommand(this->_connect, "HGET phone %s", phone.c_str());
-        JSON    data = JSON::parse(reply->str);
-        freeReplyObject(reply);
-        for (int i = 0; i < data["Served"].size(); i++) {
-            if (data["Served"][i] == token)
-                return  true;
-        }
-        return  false;
-    }
-    void    add_phone_Served(std::string phone, std::string token) {
-        redisReply* reply = (redisReply*)redisCommand(this->_connect, "HGET phone %s", phone.c_str());
-        JSON    data= JSON::parse(reply->str);
-        data["Served"].push_back(token);
-        freeReplyObject(reply);
-        reply = (redisReply*)redisCommand(this->_connect, "HSET phone %s %s", phone.c_str(), data.dump().c_str());
-        freeReplyObject(reply);
-    }
-    void    add_phone(std::string phone,std::string real_phone) {
-        JSON    data ;
-        data["Served"] = JSON::array();
-        data["real_phone"] = real_phone;
-        redisReply* reply = (redisReply*)redisCommand(this->_connect, "HSET phone %s %s", phone.c_str(), data.dump().c_str());
-        freeReplyObject(reply);
-    }
-    bool    exist_phone(std::string phone) {
-        redisReply* reply = (redisReply*)redisCommand(this->_connect, "HEXISTS phone %s", phone.c_str());
-        int ret = reply->integer;
-        freeReplyObject(reply);
-        return  ret;
-    }
-    bool    exist_user(std::string token) {
-       redisReply* reply = (redisReply*)redisCommand(this->_connect, "SISMEMBER %s %s", user_db_name.c_str(),token.c_str());
-       int ret = reply->integer;
-       freeReplyObject(reply);
-       return ret;
-    }
-    void    add_user(std::string user) {
-        redisCommand(this->_connect, "sadd %s %s",  user_db_name.c_str(),user.c_str());
-    }
+		}
+	}
+	STATUS_RedisManager    exist_real_phone(std::string phone) {
+		try
+		{
+			std::map<std::string, std::string> hashs;
+			redis_me->hgetall(phone_db_name, std::inserter(hashs, hashs.begin()));
+			for (auto& in : hashs) {
+				JSON	json = JSON::parse(in.second);
+				if (json[REAL_PHONE_KEY] == phone)
+					return STATUS_TRUE;
+			}
+			return STATUS_FALSE;
+		}
+		catch (const std::exception&)
+		{
+			return STATUS_ERROR;
+		}
+	}
 
-    void    clear_all() {
-        redisReply* reply = (redisReply*)redisCommand(this->_connect, "DEL users");
-        if (reply == NULL || reply->type != REDIS_REPLY_INTEGER) {
-            std::cerr << "DEL error: " << this->_connect->errstr << std::endl;
-        }
-        freeReplyObject(reply);
-        
-        reply = (redisReply*)redisCommand(this->_connect, "DEL phone");
-        if (reply == NULL || reply->type != REDIS_REPLY_INTEGER) {
-            std::cerr << "DEL error: " << this->_connect->errstr << std::endl;
-        }
-        freeReplyObject(reply);
-    }
+	STATUS_RedisManager    exist_user(std::string token) {
+		try
+		{
+			if (check_user_.exist_user_intoken(token))
+				return STATUS_TRUE;
+			else
+				return STATUS_FALSE;
+		}
+		catch (const std::exception&)
+		{
+			return STATUS_ERROR;
+		}
+	}
+	
+	STATUS_RedisManager	Add_Served(std::string phone, std::string token) {
+		try {
+			OptionalString strValue = redis_me->hget(phone_db_name, phone);
+			JSON    data = JSON::parse(strValue->c_str());
+			data[SERVED_KEY].push_back(token);
+			// 使用 std::lock_guard 获取互斥量
+			std::lock_guard<std::mutex> guard(_lock);
+			redis_me->hset(phone_db_name, phone, data.dump());
+		}
+		catch (const Error& err) {
+			std::cerr << "Failed to set key-value pair in Redis database: " << err.what() << '\n';
+			return STATUS_ERROR;
+		}
+		return STATUS_TRUE;
+	}
+	
+	STATUS_RedisManager	    has_Served(std::string phone, std::string token) {
+		try {
+			OptionalString strValue = redis_me->hget(phone_db_name, phone);
+			JSON    data = JSON::parse(strValue->c_str());
+			for (int i = 0; i < data[SERVED_KEY].size(); i++) {
+				if (data[SERVED_KEY][i] == token)
+					return  STATUS_TRUE;
+			}
+		}
+		catch (const Error& err) {
+			std::cerr << "Failed to set key-value pair in Redis database: " << err.what() << '\n';
+			return STATUS_ERROR;
+		}
+		return  STATUS_FALSE;
+	}
+
+	std::vector<redis_phone> get_noServed_item(std::string token, int items_count = 0) {
+		std::vector<redis_phone> ret;
+		std::map<std::string, std::string> hashTerm;
+		int  count = 1;
+		try {
+			redis_me->hgetall(phone_db_name, std::inserter(hashTerm, hashTerm.end()));
+			for (auto& kv : hashTerm) {
+				redis_phone	re_;
+				re_.phone = kv.first;
+				JSON    data = JSON::parse(kv.second);
+				if (data[SERVED_KEY].size() == 0) {
+					re_.real_phone = data[REAL_PHONE_KEY];
+					ret.push_back(re_);
+					Add_Served(re_.phone, token);
+					count++;
+				}
+				else {
+					bool	has_ = true;
+					for (int j = 0; j < data[SERVED_KEY].size(); j++) {
+						if (data[SERVED_KEY][j] == token) {
+							has_ = false;
+						}
+					}
+					if (has_) {
+						re_.real_phone = data[REAL_PHONE_KEY];
+						ret.push_back(re_);
+						Add_Served(re_.phone, token);
+						count++;
+					}
+				}
+				if (items_count != 0) {
+					if (items_count < count)
+						break;
+				}
+			}
+		}
+		catch (const Error& err) {
+			std::cerr << "Failed to set key-value pair in Redis database: " << err.what() << '\n';
+			return ret;
+		}
+		return ret;
+	}
+
+	std::string	Alloc_Hash_in_token(std::string token) {
+		auto hash = check_user_.Alloc_hash(token);
+		//把hash存到users键中
+		try
+		{
+			JSON	js;
+			js["time_t"] = hash.user_info.t;
+			js["hash"] = hash.hash;
+			// 使用 std::lock_guard 获取互斥量
+			std::lock_guard<std::mutex> guard(_lock);
+			redis_me->hset(user_db_name, token, js.dump());
+		}
+		catch (const std::exception&)
+		{
+			return "error";
+		}
+		return hash.hash;
+	}
+
+	std::string	hash_get_token(std::string hash) {
+		auto c = check_user_.get_user_info(hash);
+		return	c.token;
+	}
+	int		check_user_exist_inhash(std::string hash) {
+		try
+		{
+			if (check_user_.exist_user_inhash(hash))
+				return	STATUS_TRUE;
+		}
+		catch (const std::exception&)
+		{
+			return STATUS_ERROR;
+		}
+		return STATUS_FALSE;
+	}
+
+	bool    _clear_all() {
+		try {
+			redis_me->del(user_db_name);
+			redis_me->del(phone_db_name);
+		}
+		catch (const Error& err) {
+			std::cerr << "Failed to set key-value pair in Redis database: " << err.what() << '\n';
+			return false;
+		}
+		return true;
+	}
+	bool	_add_user_and_phone() {
+		try {
+			for (int i = 100; i < 200; i++) {
+				std::string phone = std::to_string(i);
+				std::string real_phone = phone + phone + phone;
+				JSON json;
+				json[REAL_PHONE_KEY] = real_phone;
+				json[SERVED_KEY] = JSON::array();
+				redis_me->hset(phone_db_name, phone, json.dump());
+			}
+			for (int i = 0; i < 4; i++) {
+				std::string user = "user" + std::to_string(i);
+				auto user_info = check_user_.Alloc_hash(user);
+				JSON js;
+				js["hash"] = user_info.hash;
+				js["time_t"] = user_info.user_info.t;
+				redis_me->hset(user_db_name, user, js.dump());
+			}
+		}
+		catch (const Error& err) {
+			std::cerr << "Failed to set key-value pair in Redis database: " << err.what() << '\n';
+			return false;
+		}
+		return true;
+	}
+
+
+	Check_User::USER_INFO& get_user_info(std::string hash) {
+		return check_user_.get_user_info(hash);
+	}
+
+	bool	check_hash_exist(std::string hash) {}
+	bool	check_token_exist(std::string hash) {}
 private:
-    std::string user_db_name = "users";
-    redisContext* _connect;
-    redisReply* _reply;
-};
+	std::mutex	_lock;
 
-#endif 
+	ConnectionOptions connection_options_;
+	ConnectionPoolOptions pool_options_;
+
+	std::unique_ptr<Redis> redis_me;
+	const std::string user_db_name = "users";
+	const std::string	phone_db_name = "phone";
+
+	Check_User	check_user_;
+};
