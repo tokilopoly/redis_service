@@ -74,12 +74,11 @@ int main(int argc, char* argv[]) {
     std::string hash22 = hash.substr(hash.find(":")+2, s - hash.find(":")-2);
     std::cout << hash22 << std::endl;
 
-    getchar();
     for (int i = 0; i < req_cnt; ++i) {
         std::string ccs=Get_Recv(&sync_client, hash22);
-        std::cout << ccs << std::endl << std::endl;
+        std::cout <<"can_recv "<< ccs << std::endl << std::endl;
         std::string ccc = Recv(&sync_client, hash22, "1111");
-        std::cout << ccc << std::endl << std::endl;
+        std::cout << "recv_mess " << ccc << std::endl << std::endl;
     }
 
     while (resp_cnt < req_cnt) hv_delay(100);

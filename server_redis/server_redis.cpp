@@ -28,15 +28,15 @@ int main(int argc, char** argv) {
 	}
 	//my_redis->clear_all();
 
-	for (int i = 0; i < 20; i++) {
-		std::string s = std::to_string(100 + i);
-		my_redis->add_phone(s, s + s+s+s); //添加几个号码
-	}
-	for (int i = 0; i < 4; i++) {
-		std::string s = "user" + std::to_string(i);
-		my_redis->add_user(s); //添加几个用户
-	}
-	
+	//for (int i = 0; i < 20; i++) {
+	//	std::string s = std::to_string(100 + i);
+	//	my_redis->add_phone(s, s + s+s+s); //添加几个号码
+	//}
+	//for (int i = 0; i < 4; i++) {
+	//	std::string s = "user" + std::to_string(i);
+	//	my_redis->add_user(s); //添加几个用户
+	//}
+	//
 #pragma endregion
 	// curl -v http://ip:port/user/123
 	router.GET("/can_recv", [&](const HttpContextPtr& ctx) {
@@ -91,8 +91,12 @@ int main(int argc, char** argv) {
 		});
 
 	router.GET("/login", [&](const HttpContextPtr& ctx) {
-		std::string token = ctx->param("token");
+		std::string token = ctx->request->GetParam("token");
 		JSON resp;
+		if (token.empty()) {
+			resp["token"] = "null";
+			return ctx->send(resp.dump(4));
+		}
 		if (my_redis->exist_user(token))
 		{
 			std::string hash = check_user.Alloc_hash(token);

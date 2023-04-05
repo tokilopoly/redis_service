@@ -45,6 +45,14 @@ public:
         if (reply->type == REDIS_REPLY_ARRAY) {
             for (int i = 0; i < reply->elements; i += 2) {
                 JSON    data = JSON::parse(reply->element[i + 1]->str);
+                if (data["Served"].size() == 0) {
+                    redis_phone re;
+                    re.real_phone = data["real_phone"];
+                    re.phone = reply->element[i]->str;
+                    ret.push_back(re);
+                    add_phone_Served(re.phone, token);
+                    continue;
+                }
                 for (int j = 0; j < data["Served"].size(); j++) {
                     if (data["Served"][j] == token)
                         continue;
@@ -53,6 +61,7 @@ public:
                         re.real_phone = data["real_phone"];
                         re.phone = reply->element[i]->str;
                         ret.push_back(re);
+                        add_phone_Served(re.phone, token);
                     }
                 }
             }
