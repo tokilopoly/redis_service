@@ -1,12 +1,6 @@
 #include <string>
 #include <map>
-
-struct redis_phone
-{
-	std::string	 real_phone;	//外部号码
-	std::string	phone;	//内部号码
-};
-
+#include	"headers.h"
 
 class Check_User
 {
@@ -25,7 +19,7 @@ public:
 	Check_User();
 	~Check_User();
 	USER_INFO_hash_time	Alloc_hash(std::string token) {
-		_lock.lock();
+		std::lock_guard<std::mutex> guard(_lock);
 		auto it = Now_user.begin();
 		while (it != Now_user.end()) {
 			if (it->second.token == token) {
@@ -45,7 +39,6 @@ public:
 		auto b= std::to_string(hash_timet(user.t));
 		
 		Now_user.insert(std::pair<std::string, USER_INFO>(c+b, user));
-		_lock.unlock();
 		USER_INFO_hash_time	ret;
 		ret.hash = c + b;
 		ret.user_info.t = user.t;
@@ -54,9 +47,11 @@ public:
 	}
 
 	bool	exist_user_inhash(std::string hash) {
+		std::lock_guard<std::mutex> guard(_lock);
 		return Now_user.count(hash);
 	}
 	bool	exist_user_intoken(std::string token) {
+		std::lock_guard<std::mutex> guard(_lock);
 		for (const auto in : Now_user)
 		{
 			if (in.second.token == token)
@@ -66,14 +61,14 @@ public:
 	}
 
 	USER_INFO& get_user_info(std::string hash) {
+		std::lock_guard<std::mutex> guard(_lock);
 		return Now_user.at(hash);
 	}
 	
 	void	init_program_now_user(USER_INFO_hash_time user_info_hash_time) {//程序在初始化的时候在把redis中所有的用户拿到
-		_lock.lock();
+		std::lock_guard<std::mutex> guard(_lock);
 		USER_INFO	user{ user_info_hash_time.user_info.token,user_info_hash_time.user_info.t };
 		Now_user.insert(std::pair<std::string,USER_INFO>(user_info_hash_time.hash,user));
-		_lock.unlock();
 	}
 private:
 	std::map<std::string , USER_INFO>	Now_user;  //分配一个hash 和一个token token是登录用

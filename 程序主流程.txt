@@ -1,0 +1,27 @@
+连接本地 127.0.0.1:6379的redis数据库
+
+1.程序初始化:
+从redis数据库"users"表中获取数据,在程序内维护一个用户表
+从redis数据库"phone"表中获取所有数据,在程序内维护一个 表"outside_number  -----> inside_number"
+
+2.提供http-api接口
+2.1 get 127.0.0.1:8080/login?token=user1
+返回一个hash
+2.2 get 127.0.0.1:8080/can_recv?hash=xxxxx
+返回可用手机号
+2.3 post 127.0.0.1:8080/recv_mess
+request-body-json:
+{
+"hash": "xxxxxxxxx",
+    "list": [
+        "6285711430788","6285733751273"
+    ],
+    "key":"wathapp"
+}
+API作用--返回json中list手机号列表接收到的短信内容:
+
+
+使用vcpkg安装依赖库:
+vcpkg install hiredis:x64-windows
+vcpkg install libhv:x64-windows-static
+vcpkg install redis-plus-plus:x64-windows
