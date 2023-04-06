@@ -5,8 +5,9 @@ using namespace hv;
 #include    <thread>
 #include    <mutex>
 #include <condition_variable>
+#include    "string2wstring.h"
+
 std::mutex  _lock;
-std::condition_variable cv;
 static std::string Recv(HttpClient* cli, std::string hash, std::string phone) {
     HttpRequest req;
     req.method = HTTP_GET;
@@ -71,18 +72,21 @@ void    Thread_func(std::string token) {
     auto s = hash.find_last_of("\"");
     std::string hash22 = hash.substr(hash.find(":") + 2, s - hash.find(":") - 2);
     std::string ccs = Get_Recv(&sync_client, hash22);
-    std::string ccc = Recv(&sync_client, hash22, "1111");
-    _lock.lock();
-    std::cout << token << "  " << hash << std::endl;
-    std::cout << token << "  " << hash22 << std::endl;
-    std::cout << token << "  thread:can_recv " << ccs << std::endl << std::endl;
-    std::cout << token << "  thread:recv_mess " << ccc << std::endl << std::endl;
-    std::cout << token << "  ----------------------------------------" << std::endl;
-    _lock.unlock();
+    std::string ccc = Recv(&sync_client, hash22, "100381003838");
+    std::lock_guard<std::mutex> guard(_lock);
+    std::wcout << to_wide_string(token) << L"  " << to_wide_string(hash) << std::endl;
+    std::wcout << to_wide_string(token) << L"  " << to_wide_string(hash22) << std::endl;
+    std::wcout << to_wide_string(token) << L"  thread:can_recv " << to_wide_string(ccs) << std::endl ;
+    std::wcout << to_wide_string(token) << L"  thread:recv_mess " << utf8ToWstring(ccc) << std::endl ;
+    std::wcout << to_wide_string(token) << L"  ----------------------------------------" << std::endl;
 }
 int main(int argc, char* argv[]) {
+    _setmode(_fileno(stdout), _O_U16TEXT);
     std::vector<std::shared_ptr<std::thread>> thread_poolt;
-    for (int i = 0; i < 10; i++) {
+    time_t begin, end;
+    double ret;
+    begin = clock();
+    for (int i = 0; i < 9; i++) {
         std::string user = "user" + std::to_string(i);
         std::shared_ptr<std::thread> t(new std::thread(Thread_func, user));
         thread_poolt.push_back(t);
@@ -90,7 +94,10 @@ int main(int argc, char* argv[]) {
     for (auto& t : thread_poolt) {
         t->join();
     }
-    printf("finished!\n");
+    end = clock();
+    ret = double(end - begin) / CLOCKS_PER_SEC;
+    std::wcout << L"runtime:   " << ret << std::endl;
+
     getchar();
     return 0;
 }
