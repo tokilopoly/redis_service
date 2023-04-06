@@ -5,6 +5,8 @@
 #include <iostream>
 #include    "str.h"
 #include	"json.hpp"
+#include	"to_base64.h"
+
 using JSON = nlohmann::json;
 using namespace sw::redis;
 
@@ -111,11 +113,11 @@ public:
 	
 	STATUS_RedisManager	Add_Served(std::string phone, std::string token) {
 		try {
+			std::lock_guard<std::mutex> guard(_lock);
 			OptionalString strValue = redis_me->hget(phone_db_name, phone);
 			JSON    data = JSON::parse(strValue->c_str());
 			data[SERVED_KEY].push_back(token);
 			// 使用 std::lock_guard 获取互斥量
-			std::lock_guard<std::mutex> guard(_lock);
 			redis_me->hset(phone_db_name, phone, data.dump());
 		}
 		catch (const Error& err) {
@@ -233,16 +235,17 @@ public:
 	}
 	bool	_add_user_and_phone() {
 		try {
-			for (int i = 100; i < 200; i++) {
+			for (int i = 10000; i < 10100; i++) {
 				std::string phone = std::to_string(i);
-				std::string real_phone = phone + phone + phone;
+				std::string real_phone = phone + phone + std::to_string(i%10000);
 				JSON json;
 				json[REAL_PHONE_KEY] = real_phone;
 				json[SERVED_KEY] = JSON::array();
 				redis_me->hset(phone_db_name, phone, json.dump());
 			}
-			for (int i = 0; i < 4; i++) {
+			for (int i = 0; i < 10; i++) {
 				std::string user = "user" + std::to_string(i);
+				//user = base64_encode(user.c_str(), user.length());
 				auto user_info = check_user_.Alloc_hash(user);
 				JSON js;
 				js["hash"] = user_info.hash;

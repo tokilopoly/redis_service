@@ -23,8 +23,8 @@ int main(int argc, char** argv) {
 	RedisManager	Redis_me("127.0.0.1");
 	Redis_me.Connect();
 
-	Redis_me._clear_all();
-	Redis_me._add_user_and_phone();
+	//Redis_me._clear_all();			//测试,先把用户 和 手机号写入数据库
+	//Redis_me._add_user_and_phone();
 	Redis_me.init_check_user();	//从数据库把所有users用户信息保存到程序里
 
 #pragma region REDIS
@@ -38,7 +38,6 @@ int main(int argc, char** argv) {
 				resp["invalid"] = false;
 				return ctx->send(resp.dump());
 			}
-
 			std::string user_token = Redis_me.hash_get_token(hash);
 			resp["invalid"] = true;
 			auto all = Redis_me.get_noServed_item(user_token,10);
@@ -66,10 +65,13 @@ int main(int argc, char** argv) {
 		}
 		auto user_info = Redis_me.get_user_info(hash);
 		resp["invalid"] = true;
-		for (int i = 0; i < 20; i++) {
-			Sleep(1000);
-		}
+		
 		std::wstring duanxin_content = L"中文something...";
+		std::thread	t([&] {
+			std::this_thread::sleep_for(std::chrono::seconds(10));
+			duanxin_content += L"\n线程写入something...";
+			});
+		t.join();
 		std::wstring_convert<std::codecvt_utf8<wchar_t>> cvt;
 		std::string utf8_str = cvt.to_bytes(duanxin_content);
 		resp["content"] = utf8_str;
@@ -103,10 +105,10 @@ int main(int argc, char** argv) {
 	// uncomment to test multi-processes
 	//server.setProcessNum(4);
 	// uncomment to test multi-threads
-	server.setThreadNum(2);
+	server.setThreadNum(4);
 
 	server.start();
 
-	while (getchar() != '\n');
+	while (getchar());
 	return 0;
 }

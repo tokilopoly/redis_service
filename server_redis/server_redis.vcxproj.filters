@@ -29,5 +29,8 @@
     <ClInclude Include="redis_my.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="to_base64.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
