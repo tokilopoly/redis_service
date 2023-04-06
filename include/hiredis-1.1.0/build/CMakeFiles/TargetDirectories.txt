@@ -1,8 +1,0 @@
-E:/download/hiredis-1.1.0/hiredis-1.1.0/build/CMakeFiles/hiredis.dir
-E:/download/hiredis-1.1.0/hiredis-1.1.0/build/CMakeFiles/hiredis_static.dir
-E:/download/hiredis-1.1.0/hiredis-1.1.0/build/CMakeFiles/hiredis-test.dir
-E:/download/hiredis-1.1.0/hiredis-1.1.0/build/CMakeFiles/PACKAGE.dir
-E:/download/hiredis-1.1.0/hiredis-1.1.0/build/CMakeFiles/RUN_TESTS.dir
-E:/download/hiredis-1.1.0/hiredis-1.1.0/build/CMakeFiles/INSTALL.dir
-E:/download/hiredis-1.1.0/hiredis-1.1.0/build/CMakeFiles/ALL_BUILD.dir
-E:/download/hiredis-1.1.0/hiredis-1.1.0/build/CMakeFiles/ZERO_CHECK.dir
